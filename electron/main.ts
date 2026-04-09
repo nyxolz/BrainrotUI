@@ -29,6 +29,7 @@ app.whenReady().then(() => {
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
+      webSecurity: false
     },
   });
 
@@ -38,7 +39,7 @@ app.whenReady().then(() => {
   if (isDev) {
     win.loadURL("http://localhost:5173");
   } else {
-    win.loadFile(path.join(__dirname, "index.html"));
+    win.loadFile(path.join(__dirname, "..", "..", "dist", "index.html"));
   }
 });
 
