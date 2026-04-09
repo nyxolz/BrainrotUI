@@ -26,7 +26,7 @@ Made by [nyxolz](https://github.com/nyxolz)
 
 ## Install
 
-One-liner. No config needed.
+
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/nyxolz/BrainrotUI/main/install.sh | bash
