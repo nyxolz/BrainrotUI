@@ -1,31 +1,42 @@
 #!/bin/bash
 
-# Brainrot UI Installer
+APP_NAME="Brainrot UI"
+ZIP_NAME="brainrot-ui-1.0.0-arm64-mac.zip"
+DOWNLOAD_URL="https://github.com/nyxolz/BrainrotUI/releases/download/v1.0/$ZIP_NAME"
 
-echo "Installing Brainrot UI..."
+echo "------------------------------------------"
+echo "  Installing $APP_NAME by nyxolz"
+echo "------------------------------------------"
 
-# Check if running as admin/root
 if [[ $EUID -eq 0 ]]; then
-    echo "Running as administrator"
-    INSTALL_DIR="/Applications"
+    DEST="/Applications"
 else
-    echo "Running as user"
-    INSTALL_DIR="$HOME/Applications"
+    DEST="$HOME/Applications"
 fi
 
-# Create install directory if it doesn't exist
-mkdir -p "$INSTALL_DIR"
+mkdir -p "$DEST"
 
-# Download the latest release
-echo "Downloading latest release..."
-curl -L -o "$INSTALL_DIR/brainrot-ui.zip" "https://github.com/nyxolz/BrainrotUI/releases/latest/download/brainrot-ui-mac.zip"
+echo "-> Downloading from GitHub..."
+curl -L -f -o "/tmp/$ZIP_NAME" "$DOWNLOAD_URL"
 
-# Unzip
-echo "Extracting..."
-unzip -q "$INSTALL_DIR/brainrot-ui.zip" -d "$INSTALL_DIR"
+if [ $? -ne 0 ]; then
+    echo "Error: Download failed. Verify that the file exists in the v1.0 release."
+    exit 1
+fi
 
-# Clean up
-rm "$INSTALL_DIR/brainrot-ui.zip"
+if [ -d "$DEST/$APP_NAME.app" ]; then
+    echo "-> Removing old version..."
+    rm -rf "$DEST/$APP_NAME.app"
+fi
 
-echo "Installation complete!"
-echo "App installed to: $INSTALL_DIR/Brainrot UI.app"
+echo "-> Extracting to $DEST..."
+unzip -q -o "/tmp/$ZIP_NAME" -d "$DEST"
+
+echo "-> Authorizing app..."
+xattr -rd com.apple.quarantine "$DEST/$APP_NAME.app" 2>/dev/null
+
+rm "/tmp/$ZIP_NAME"
+
+echo "------------------------------------------"
+echo "Done! You can find $APP_NAME in $DEST"
+echo "------------------------------------------"
