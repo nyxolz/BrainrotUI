@@ -2,7 +2,7 @@
 
 APP_NAME="Brainrot UI"
 ZIP_NAME="brainrot-ui-1.0.0-arm64-mac.zip"
-DOWNLOAD_URL="https://github.com/nyxolz/BrainrotUI/releases/download/v1.0/$ZIP_NAME"
+DOWNLOAD_URL="https://github.com/nyxolz/BrainrotUI/releases/tag/v1.0/$ZIP_NAME"
 
 echo "------------------------------------------"
 echo "  Installing $APP_NAME by nyxolz"
@@ -20,7 +20,7 @@ echo "-> Downloading from GitHub..."
 curl -L -f -o "/tmp/$ZIP_NAME" "$DOWNLOAD_URL"
 
 if [ $? -ne 0 ]; then
-    echo "Error: Download failed. Verify that the file exists in the v1.0 release."
+    echo "Error: Download failed"
     exit 1
 fi
 
