@@ -28,7 +28,7 @@ Made by [nyxolz](https://github.com/nyxolz)
 
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/nyxolz/BrainrotUI/main/install.sh | bash
+curl -fsSL (https://raw.githubusercontent.com/nyxolz/BrainrotUI/refs/heads/main/install.sh) | bash
 ```
 
 
