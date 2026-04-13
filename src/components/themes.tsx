@@ -1,22 +1,11 @@
+import tungImg from "../../public/themes/tung.jpeg";
+import trallaImg from "../../public/themes/tralla.png";
+import chimpiImg from "../../public/themes/chimpi.png";
+
 export const THEMES = [
-  {
-    id: "tung",
-    name: "tung tung sahur",
-    img: "/themes/tung.jpeg",
-    ext: "jpeg",
-  },
-  {
-    id: "tralla",
-    name: "tralalero tralala",
-    img: "/themes/tralla.png",
-    ext: "png",
-  },
-  {
-    id: "chimpi",
-    name: "chimpanzini bananini",
-    img: "/themes/chimpi.png",
-    ext: "png",
-  },
+  { id: "tung", name: "tung tung sahur", img: tungImg, ext: "jpeg" },
+  { id: "tralla", name: "tralalero tralala", img: trallaImg, ext: "png" },
+  { id: "chimpi", name: "chimpanzini bananini", img: chimpiImg, ext: "png" },
 ];
 
 interface ThemesProps {
