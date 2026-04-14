@@ -8,8 +8,8 @@ RED='\033[0;31m'
 WHITE='\033[1;37m'
 
 APP_NAME="Brainrot UI"
-DMG_NAME="Brainrot.UI-1.0.0-arm64.dmg"
-DOWNLOAD_URL="https://github.com/nyxolz/BrainrotUI/releases/download/v1.0/$DMG_NAME"
+DMG_NAME="Brainrot.UI-1.0.1-arm64.dmg"
+DOWNLOAD_URL="https://github.com/nyxolz/BrainrotUI/releases/download/v1.0.1/$DMG_NAME"
 
 clear
 echo -e "${CYAN}--------------------------------------------------${NC}"
