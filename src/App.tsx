@@ -1,92 +1,30 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Play,
   Trash2,
   Terminal,
   X,
   FileText,
-  Wifi,
-  WifiOff,
+  Loader2,
 } from "lucide-react";
 import { ScriptsBrowser } from "./components/scripts-browser";
 import { Themes, THEMES } from "./components/Themes";
 import { useMacsploit } from "./hooks/useMacsploit";
 
 const LUA_KEYWORDS = [
-  "and",
-  "break",
-  "do",
-  "else",
-  "elseif",
-  "end",
-  "false",
-  "for",
-  "function",
-  "if",
-  "in",
-  "local",
-  "nil",
-  "not",
-  "or",
-  "repeat",
-  "return",
-  "then",
-  "true",
-  "until",
-  "while",
-  "goto",
+  "and", "break", "do", "else", "elseif", "end", "false", "for",
+  "function", "if", "in", "local", "nil", "not", "or", "repeat",
+  "return", "then", "true", "until", "while", "goto",
 ];
 const LUA_BUILTINS = [
-  "print",
-  "tostring",
-  "tonumber",
-  "type",
-  "pairs",
-  "ipairs",
-  "next",
-  "select",
-  "unpack",
-  "rawget",
-  "rawset",
-  "rawequal",
-  "rawlen",
-  "setmetatable",
-  "getmetatable",
-  "require",
-  "pcall",
-  "xpcall",
-  "error",
-  "assert",
-  "load",
-  "loadstring",
-  "loadfile",
-  "dofile",
-  "collectgarbage",
-  "_G",
-  "_VERSION",
-  "math",
-  "string",
-  "table",
-  "io",
-  "os",
-  "coroutine",
-  "game",
-  "workspace",
-  "script",
-  "wait",
-  "spawn",
-  "delay",
-  "Instance",
-  "Vector3",
-  "CFrame",
-  "Color3",
-  "UDim2",
-  "UDim",
-  "TweenInfo",
-  "Enum",
-  "tick",
-  "time",
-  "task",
+  "print", "tostring", "tonumber", "type", "pairs", "ipairs", "next",
+  "select", "unpack", "rawget", "rawset", "rawequal", "rawlen",
+  "setmetatable", "getmetatable", "require", "pcall", "xpcall", "error",
+  "assert", "load", "loadstring", "loadfile", "dofile", "collectgarbage",
+  "_G", "_VERSION", "math", "string", "table", "io", "os", "coroutine",
+  "game", "workspace", "script", "wait", "spawn", "delay", "Instance",
+  "Vector3", "CFrame", "Color3", "UDim2", "UDim", "TweenInfo", "Enum",
+  "tick", "time", "task",
 ];
 const TC: Record<string, string> = {
   keyword: "#569cd6",
@@ -121,10 +59,7 @@ function tokenizeLua(code: string) {
       i = j + 1;
       continue;
     }
-    if (
-      /[0-9]/.test(code[i]) ||
-      (code[i] === "." && /[0-9]/.test(code[i + 1] || ""))
-    ) {
+    if (/[0-9]/.test(code[i]) || (code[i] === "." && /[0-9]/.test(code[i + 1] || ""))) {
       let j = i;
       while (j < code.length && /[0-9._xXa-fA-F]/.test(code[j])) j++;
       tokens.push({ type: "number", value: code.slice(i, j) });
@@ -136,11 +71,7 @@ function tokenizeLua(code: string) {
       while (j < code.length && /[a-zA-Z0-9_]/.test(code[j])) j++;
       const w = code.slice(i, j);
       tokens.push({
-        type: LUA_KEYWORDS.includes(w)
-          ? "keyword"
-          : LUA_BUILTINS.includes(w)
-            ? "builtin"
-            : "ident",
+        type: LUA_KEYWORDS.includes(w) ? "keyword" : LUA_BUILTINS.includes(w) ? "builtin" : "ident",
         value: w,
       });
       i = j;
@@ -162,7 +93,6 @@ interface Tab {
   name: string;
   code: string;
 }
-let uid = 2;
 
 const THEME_DEFAULT_CODE: Record<string, string> = {
   tung: 'print("tung tung sahur")',
@@ -178,6 +108,12 @@ export default function App() {
   ]);
   const [activeId, setActiveId] = useState(1);
   const [consoleOpen, setConsoleOpen] = useState(false);
+  const [executing, setExecuting] = useState(false);
+  const uidRef = useRef(2);
+
+  const [renamingId, setRenamingId] = useState<number | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const renameInputRef = useRef<HTMLInputElement>(null);
 
   const taRef = useRef<HTMLTextAreaElement>(null);
   const preRef = useRef<HTMLPreElement>(null);
@@ -194,16 +130,17 @@ export default function App() {
     detach,
     execute,
   } = useMacsploit();
+
   const tab = tabs.find((t) => t.id === activeId)!;
-  const currentThemeData =
-    THEMES.find((t) => t.id === activeTheme) || THEMES[0];
+  const currentThemeData = THEMES.find((t) => t.id === activeTheme) || THEMES[0];
 
   useEffect(() => {
-    if (consoleOpen && consoleEnd.current) {
-      consoleEnd.current.scrollIntoView({ behavior: "smooth", block: "end" });
+    if (consoleOpen) {
+      setTimeout(() => {
+        consoleEnd.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+      }, 0);
     }
   }, [messages.length, consoleOpen]);
-
 
   useEffect(() => {
     const defaultCode = THEME_DEFAULT_CODE[activeTheme] ?? "";
@@ -211,6 +148,12 @@ export default function App() {
       prev.map((t) => (t.id === 1 ? { ...t, code: defaultCode } : t))
     );
   }, [activeTheme]);
+
+  useEffect(() => {
+    if (renamingId !== null) {
+      setTimeout(() => renameInputRef.current?.focus(), 0);
+    }
+  }, [renamingId]);
 
   const setCode = (code: string) =>
     setTabs((p) => p.map((t) => (t.id === activeId ? { ...t, code } : t)));
@@ -235,7 +178,7 @@ export default function App() {
   };
 
   const newTab = () => {
-    const id = uid++;
+    const id = uidRef.current++;
     setTabs((p) => [...p, { id, name: "untitled", code: "" }]);
     setActiveId(id);
   };
@@ -249,21 +192,44 @@ export default function App() {
     if (activeId === id) setActiveId(next[Math.max(0, idx - 1)].id);
   };
 
-  const autoAttach = async () => {
+  const startRename = (id: number, currentName: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setRenamingId(id);
+    setRenameValue(currentName);
+  };
+
+  const commitRename = () => {
+    if (renamingId === null) return;
+    const name = renameValue.trim() || "untitled";
+    setTabs((p) => p.map((t) => (t.id === renamingId ? { ...t, name } : t)));
+    setRenamingId(null);
+  };
+
+  const onRenameKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") commitRename();
+    if (e.key === "Escape") setRenamingId(null);
+  };
+
+  const autoAttach = useCallback(async () => {
     if (connecting || attached) return;
     for (const port of instances) {
       try {
-        const res: any = await attach(port);
-        if (res !== false) return;
+        await attach(port);
+        return;
       } catch (err: any) {
         if (err?.toString().includes("AlreadyInjected")) return;
       }
     }
-  };
+  }, [connecting, attached, instances, attach]);
 
   const run = async () => {
-    if (!tab.code.trim()) return;
-    await execute(tab.code);
+    if (!tab.code.trim() || executing) return;
+    setExecuting(true);
+    try {
+      await execute(tab.code);
+    } finally {
+      setExecuting(false);
+    }
   };
 
   const lines = tab.code.split("\n").length;
@@ -342,8 +308,7 @@ export default function App() {
                 fontSize: "10px",
                 textTransform: "uppercase",
                 cursor: "pointer",
-                background:
-                  page === p ? "rgba(255,255,255,0.1)" : "transparent",
+                background: page === p ? "rgba(255,255,255,0.1)" : "transparent",
                 color: page === p ? "#fff" : "#777",
                 border: "none",
                 borderRadius: "4px",
@@ -394,30 +359,45 @@ export default function App() {
                     gap: "8px",
                     padding: "10px 18px",
                     cursor: "pointer",
-                    background:
-                      t.id === activeId
-                        ? "rgba(255,255,255,0.05)"
-                        : "transparent",
+                    background: t.id === activeId ? "rgba(255,255,255,0.05)" : "transparent",
                     color: t.id === activeId ? "#fff" : "#666",
                     borderRight: "1px solid #111",
-                    borderBottom:
-                      t.id === activeId
-                        ? "2px solid #fff"
-                        : "2px solid transparent",
+                    borderBottom: t.id === activeId ? "2px solid #fff" : "2px solid transparent",
                   }}
                 >
-                  <FileText
-                    size={12}
-                    style={{ opacity: t.id === activeId ? 1 : 0.4 }}
-                  />
-                  <span
-                    style={{
-                      fontSize: "11px",
-                      fontWeight: t.id === activeId ? "700" : "400",
-                    }}
-                  >
-                    {t.name.toUpperCase()}
-                  </span>
+                  <FileText size={12} style={{ opacity: t.id === activeId ? 1 : 0.4 }} />
+                  {renamingId === t.id ? (
+                    <input
+                      ref={renameInputRef}
+                      value={renameValue}
+                      onChange={(e) => setRenameValue(e.target.value)}
+                      onBlur={commitRename}
+                      onKeyDown={onRenameKey}
+                      onClick={(e) => e.stopPropagation()}
+                      style={{
+                        fontSize: "11px",
+                        fontWeight: "700",
+                        background: "transparent",
+                        border: "none",
+                        borderBottom: "1px solid #555",
+                        color: "#fff",
+                        outline: "none",
+                        width: "70px",
+                        fontFamily: "inherit",
+                      }}
+                    />
+                  ) : (
+                    <span
+                      onDoubleClick={(e) => startRename(t.id, t.name, e)}
+                      style={{
+                        fontSize: "11px",
+                        fontWeight: t.id === activeId ? "700" : "400",
+                        userSelect: "none",
+                      }}
+                    >
+                      {t.name.toUpperCase()}
+                    </span>
+                  )}
                   {tabs.length > 1 && (
                     <span
                       onClick={(e) => closeTab(t.id, e)}
@@ -568,9 +548,7 @@ export default function App() {
                 </div>
                 <div style={{ flex: 1, overflowY: "auto", padding: "12px" }}>
                   {messages.length === 0 ? (
-                    <div style={{ color: "#333", fontSize: "11px" }}>
-                      NO OUTPUT
-                    </div>
+                    <div style={{ color: "#333", fontSize: "11px" }}>NO OUTPUT</div>
                   ) : (
                     messages.map((m, i) => (
                       <div
@@ -582,9 +560,7 @@ export default function App() {
                           marginBottom: "4px",
                         }}
                       >
-                        <span style={{ color: "#444", flexShrink: 0 }}>
-                          {m.time}
-                        </span>
+                        <span style={{ color: "#444", flexShrink: 0 }}>{m.time}</span>
                         <span
                           style={{
                             color: m.type === "error" ? "#ff4444" : "#666",
@@ -650,9 +626,7 @@ export default function App() {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    background: btn.active
-                      ? "rgba(255,255,255,0.1)"
-                      : "#080808",
+                    background: btn.active ? "rgba(255,255,255,0.1)" : "#080808",
                     color: btn.active ? "#fff" : "#444",
                     border: "1px solid #111",
                     borderRadius: "6px",
@@ -681,15 +655,11 @@ export default function App() {
                   letterSpacing: "0.5px",
                 }}
               >
-                {connecting
-                  ? "CONNECTING..."
-                  : attached
-                    ? "CONNECTED"
-                    : "ATTACH"}
+                {connecting ? "CONNECTING..." : attached ? "CONNECTED" : "ATTACH"}
               </button>
               <button
                 onClick={run}
-                disabled={!attached}
+                disabled={!attached || executing}
                 title="EXECUTE"
                 style={{
                   width: "38px",
@@ -701,19 +671,27 @@ export default function App() {
                   color: attached ? "#fff" : "#222",
                   border: "1px solid #111",
                   borderRadius: "6px",
-                  cursor: attached ? "pointer" : "not-allowed",
+                  cursor: attached && !executing ? "pointer" : "not-allowed",
                 }}
               >
-                <Play
-                  size={18}
-                  fill={attached ? "currentColor" : "none"}
-                  style={{ opacity: attached ? 1 : 0.4 }}
-                />
+                {executing ? (
+                  <Loader2 size={18} style={{ opacity: 0.7, animation: "spin 1s linear infinite" }} />
+                ) : (
+                  <Play
+                    size={18}
+                    fill={attached ? "currentColor" : "none"}
+                    style={{ opacity: attached ? 1 : 0.4 }}
+                  />
+                )}
               </button>
             </div>
           </>
         ) : null}
       </div>
+
+      <style>{`
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+      `}</style>
     </div>
   );
 }
