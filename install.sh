@@ -83,3 +83,4 @@ bar
 printf "  ${green}${bold}success:${nc}  ${white}%s${nc} ${dim}%s${nc}\n" "$app_bundle" "$remote_tag"
 bar
 printf "  ${dim}run:${nc} open \"$dest/$app_bundle\"\n\n"
+ 
