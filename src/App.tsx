@@ -204,9 +204,6 @@ export default function App() {
     }
   }, [messages.length, consoleOpen]);
 
-  useEffect(() => {
-    if (messages.length) setConsoleOpen(true);
-  }, [messages.length]);
 
   useEffect(() => {
     const defaultCode = THEME_DEFAULT_CODE[activeTheme] ?? "";
