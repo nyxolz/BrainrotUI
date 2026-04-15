@@ -1,60 +1,86 @@
 #!/bin/bash
 
-nc='\033[0m'
-bold='\033[1m'
-cyan='\033[0;36m'
-green='\033[0;32m'
-red='\033[0;31m'
-white='\033[1;37m'
+nc=’\033[0m’; bold=’\033[1m’
+cyan=’\033[0;36m’; green=’\033[0;32m’
+red=’\033[0;31m’; white=’\033[1;37m’; dim=’\033[2m’
 
-app_name="brainrot ui"
-repo="nyxolz/brainrotui"
+REPO=”${REPO:-nyxolz/brainrotui}”
+APP_NAME=”${APP_NAME:-brainrot ui}”
+VERSION_FILE=”$HOME/.config/brainrotui/.version”
+
+die()  { printf “${red}✗ %s${nc}\n” “$*”; exit 1; }
+info() { printf “${cyan}▸${nc} %s\n” “$*”; }
+ok()   { printf “${green}✓${nc} %s\n” “$*”; }
+step() { printf “${bold}${white}[%s]${nc} %s\n” “$1” “$2”; }
+bar()  { printf “${dim}────────────────────────────────────────────────${nc}\n”; }
 
 clear
-printf "${cyan}--------------------------------------------------${nc}\n"
-printf "${bold}${white}  installation: ${app_name}${nc}\n"
-printf "${cyan}--------------------------------------------------${nc}\n"
+bar
+printf “  ${bold}${white}%-24s${nc}  ${dim}%s${nc}\n” “$APP_NAME” “installer · auto-update”
+bar
 
-release_data=$(curl -s "https://api.github.com/repos/$repo/releases/latest")
-download_url=$(echo "$release_data" | grep -o 'https://github.com/[^"]*arm64\.dmg' | head -n 1)
-dmg_name=$(basename "$download_url")
+step “1/5” “fetching latest release…”
+release_data=$(curl -fsSL “https://api.github.com/repos/$REPO/releases/latest”)   
+|| die “github api request failed”
 
-if [ -z "$download_url" ]; then
-    printf "${red}status: could not find an arm64 dmg in the latest release.${nc}\n"
-    exit 1
+remote_tag=$(echo “$release_data” | grep -m1 ‘“tag_name”’ | grep -o ‘“v[^”]*”’ | tr -d ‘”’)
+download_url=$(echo “$release_data” | grep -o ’https://github.com/[^”]*.dmg’ | head -n1)
+dmg_name=$(basename “$download_url”)
+
+[ -z “$download_url” ] && die “no .dmg found in latest release ($remote_tag)”
+
+local_tag=””
+[ -f “$VERSION_FILE” ] && local_tag=$(cat “$VERSION_FILE”)
+
+if [ “$local_tag” = “$remote_tag” ]; then
+ok “already on latest: ${white}$remote_tag${nc}”
+bar
+exit 0
 fi
+
+[ -n “$local_tag” ]   
+&& info “update available: ${dim}$local_tag${nc} → ${white}$remote_tag${nc}”   
+|| info “installing ${white}$remote_tag${nc}”
 
 if [[ $EUID -eq 0 ]]; then
-    dest="/Applications"
-    printf "${cyan}mode:${nc} system-wide (admin)\n"
+dest=”/Applications”
+info “mode: system-wide (admin)”
 else
-    dest="$HOME/Applications"
-    printf "${cyan}mode:${nc} user-only (non-admin)\n"
+dest=”$HOME/Applications”
+info “mode: user-only (non-admin)”
 fi
 
-printf "${bold}[1/4]${nc} downloading $dmg_name...\n"
-curl -L -f -o "/tmp/$dmg_name" "$download_url" --progress-bar
+step “2/5” “downloading ${white}$dmg_name${nc}…”
+tmp_dmg=”/tmp/$dmg_name”
+curl -L -f –progress-bar -o “$tmp_dmg” “$download_url”   
+|| die “download failed”
 
-if [ $? -ne 0 ]; then
-    printf "${red}status: download failed.${nc}\n"
-    exit 1
-fi
+step “3/5” “mounting disk image…”
+mount_output=$(hdiutil attach “$tmp_dmg” -nobrowse -noautoopen 2>&1)
+mount_dir=$(echo “$mount_output” | tail -n1 | perl -nle ‘/(/Volumes/.*)/; print $1’)
+[ -z “$mount_dir” ] && die “failed to mount dmg”
 
-mkdir -p "$dest"
+step “4/5” “deploying to ${white}$dest${nc}…”
+mkdir -p “$dest”
 
-printf "${bold}[2/4]${nc} preparing filesystem...\n"
-mount_dir=$(hdiutil mount "/tmp/$dmg_name" | tail -n1 | perl -nle '/(\/Volumes\/.*)/; print $1')
+app_src=$(find “$mount_dir” -maxdepth 1 -name “*.app” | head -n1)
+[ -z “$app_src” ] && { hdiutil detach “$mount_dir” >/dev/null; die “no .app found in dmg”; }
 
-printf "${bold}[3/4]${nc} deploying to ${white}$dest${nc}...\n"
-rm -rf "$dest/${app_name}.app"
-cp -r "$mount_dir/"*.app "$dest/"
+app_bundle=$(basename “$app_src”)
+rm -rf “$dest/$app_bundle”
+cp -r “$app_src” “$dest/$app_bundle”   
+|| { hdiutil detach “$mount_dir” >/dev/null; die “copy failed”; }
 
-printf "${bold}[4/4]${nc} finalizing...\n"
-hdiutil detach "$mount_dir" > /dev/null
-rm "/tmp/$dmg_name"
+step “5/5” “finalizing…”
+hdiutil detach “$mount_dir” >/dev/null 2>&1
+rm -f “$tmp_dmg”
 
-xattr -rd com.apple.quarantine "$dest/"*.app 2>/dev/null
+xattr -rd com.apple.quarantine “$dest/$app_bundle” 2>/dev/null
 
-printf "${cyan}--------------------------------------------------${nc}\n"
-printf "${green}${bold}success:${nc} ${white}${app_name} is now updated.${nc}\n"
-printf "${cyan}--------------------------------------------------${nc}\n"
+mkdir -p “$(dirname “$VERSION_FILE”)”
+echo “$remote_tag” > “$VERSION_FILE”
+
+bar
+printf “  ${green}${bold}success:${nc}  ${white}%s${nc} ${dim}%s${nc}\n” “$app_bundle” “$remote_tag”
+bar
+printf “  ${dim}run:${nc} open "$dest/$app_bundle"\n\n”
