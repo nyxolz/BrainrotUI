@@ -98,6 +98,7 @@ const THEME_DEFAULT_CODE: Record<string, string> = {
   tung: 'print("tung tung sahur")',
   tralla: 'print("tralalero tralala")',
   chimpi: 'print("chimpanzini bananini")',
+  skibidi: 'print("skibidi toilet")',
 };
 
 export default function App() {
