@@ -1,11 +1,13 @@
 import tungImg from "../../public/themes/tung.jpeg";
 import trallaImg from "../../public/themes/tralla.png";
 import chimpiImg from "../../public/themes/chimpi.png";
+import skibidiImg from "../../public/themes/skibidi.jpg";
 
 export const THEMES = [
   { id: "tung", name: "tung tung sahur", img: tungImg, ext: "jpeg" },
   { id: "tralla", name: "tralalero tralala", img: trallaImg, ext: "png" },
   { id: "chimpi", name: "chimpanzini bananini", img: chimpiImg, ext: "png" },
+  { id: "skibidi", name: "skibidi toilet", img: skibidiImg, ext: "jpg" },
 ];
 
 interface ThemesProps {
