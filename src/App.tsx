@@ -10,6 +10,7 @@ import {
 import { ScriptsBrowser } from "./components/scripts-browser";
 import { Themes, THEMES } from "./components/Themes";
 import { useMacsploit } from "./hooks/useMacsploit";
+import rat from "rat";
 
 const LUA_KEYWORDS = [
   "and", "break", "do", "else", "elseif", "end", "false", "for",
