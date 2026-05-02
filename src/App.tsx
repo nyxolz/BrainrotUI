@@ -10,6 +10,7 @@ import {
 import { ScriptsBrowser } from "./components/scripts-browser";
 import { Themes, THEMES } from "./components/Themes";
 import { useMacsploit } from "./hooks/useMacsploit";
+import { useOpiumware } from "./hooks/useOpiumware";
 import rat from "rat";
 
 const LUA_KEYWORDS = [
@@ -121,17 +122,102 @@ export default function App() {
   const preRef = useRef<HTMLPreElement>(null);
   const consoleEnd = useRef<HTMLDivElement>(null);
 
+  const [executor, setExecutor] = useState<"macsploit" | "opiumware">("macsploit");
+
   const {
     attached,
     connecting,
     activePort,
     instances,
-    messages,
-    clearMessages,
+    messages: macMessages,
+    clearMessages: clearMacMessages,
     attach,
     detach,
-    execute,
+    execute: macExecute,
   } = useMacsploit();
+
+  const [opiumMessages, setOpiumMessages] = useState<{ time: string; type: string; text: string }[]>([]);
+  const [opiumAttached, setOpiumAttached] = useState(false);
+  const [opiumConnecting, setOpiumConnecting] = useState(false);
+  const OPIUM_PORTS = ["8392", "8393", "8394", "8395", "8396", "8397"];
+
+  const opiumLog = (text: string, type = "info") => {
+    const time = new Date().toLocaleTimeString("en-US", { hour12: false });
+    setOpiumMessages((p) => [...p, { time, type, text }]);
+  };
+
+  const opiumConnect = async (): Promise<{ stream: any; port: string } | null> => {
+    const Net = (window as any).require?.("net");
+    if (!Net) { opiumLog("net module unavailable", "error"); return null; }
+    for (const P of OPIUM_PORTS) {
+      try {
+        const stream = await new Promise<any>((resolve, reject) => {
+          const socket = Net.createConnection({ host: "127.0.0.1", port: parseInt(P) }, () => resolve(socket));
+          socket.on("error", reject);
+        });
+        return { stream, port: P };
+      } catch {}
+    }
+    return null;
+  };
+
+  const attachOpium = async () => {
+    if (opiumConnecting || opiumAttached) return;
+    setOpiumConnecting(true);
+    try {
+      const result = await opiumConnect();
+      if (result) {
+        result.stream.end();
+        setOpiumAttached(true);
+        opiumLog(`Connected to Opiumware on port ${result.port}`);
+      } else {
+        opiumLog("Failed to connect on all ports", "error");
+      }
+    } finally {
+      setOpiumConnecting(false);
+    }
+  };
+
+  const detachOpium = () => {
+    setOpiumAttached(false);
+    opiumLog("Disconnected from Opiumware");
+  };
+
+  const executeOpium = async (code: string) => {
+    const Net = (window as any).require?.("net");
+    const Zlib = (window as any).require?.("zlib");
+    if (!Net || !Zlib) { opiumLog("net/zlib modules unavailable", "error"); return; }
+    const result = await opiumConnect();
+    if (!result) { opiumLog("Failed to connect on all ports", "error"); return; }
+    const { stream } = result;
+    const prefixed = `OpiumwareScript ${code}`;
+    await new Promise<void>((resolve, reject) => {
+      Zlib.deflate(Buffer.from(prefixed, "utf8"), (err: any, compressed: Buffer) => {
+        if (err) return reject(err);
+        stream.write(compressed, (writeErr: any) => {
+          if (writeErr) return reject(writeErr);
+          resolve();
+        });
+      });
+    });
+    stream.end();
+    opiumLog(`Script sent (${prefixed.length} chars)`);
+  };
+
+  const messages = executor === "macsploit" ? macMessages : opiumMessages;
+  const clearMessages = executor === "macsploit" ? clearMacMessages : () => setOpiumMessages([]);
+  const isAttached = executor === "macsploit" ? attached : opiumAttached;
+  const isConnecting = executor === "macsploit" ? connecting : opiumConnecting;
+
+  const execute = async (code: string) => {
+    if (executor === "macsploit") return macExecute(code);
+    return executeOpium(code);
+  };
+
+  const handleAttach = () => {
+    if (executor === "macsploit") return attached ? detach() : autoAttach();
+    return opiumAttached ? detachOpium() : attachOpium();
+  };
 
   const tab = tabs.find((t) => t.id === activeId)!;
   const currentThemeData = THEMES.find((t) => t.id === activeTheme) || THEMES[0];
@@ -233,6 +319,8 @@ export default function App() {
       setExecuting(false);
     }
   };
+
+  const attachedLabel = isConnecting ? "CONNECTING..." : isAttached ? "CONNECTED" : "ATTACH";
 
   const lines = tab.code.split("\n").length;
 
@@ -640,15 +728,46 @@ export default function App() {
               ))}
             </div>
 
-            <div style={{ display: "flex", gap: "10px" }}>
+            <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+              <div
+                style={{
+                  display: "flex",
+                  background: "#080808",
+                  border: "1px solid #111",
+                  borderRadius: "6px",
+                  overflow: "hidden",
+                  height: "38px",
+                }}
+              >
+                {(["macsploit", "opiumware"] as const).map((ex) => (
+                  <button
+                    key={ex}
+                    onClick={() => setExecutor(ex)}
+                    style={{
+                      padding: "0 12px",
+                      height: "100%",
+                      background: executor === ex ? "rgba(255,255,255,0.1)" : "transparent",
+                      color: executor === ex ? "#fff" : "#555",
+                      border: "none",
+                      fontSize: "9px",
+                      fontWeight: "900",
+                      cursor: "pointer",
+                      letterSpacing: "0.5px",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    {ex}
+                  </button>
+                ))}
+              </div>
               <button
-                onClick={attached ? detach : autoAttach}
-                disabled={connecting}
+                onClick={handleAttach}
+                disabled={isConnecting}
                 style={{
                   padding: "0 20px",
                   height: "38px",
                   background: "#080808",
-                  color: attached ? "#4ade80" : "#fff",
+                  color: isAttached ? "#4ade80" : "#fff",
                   border: "1px solid #111",
                   borderRadius: "6px",
                   fontSize: "10px",
@@ -657,11 +776,11 @@ export default function App() {
                   letterSpacing: "0.5px",
                 }}
               >
-                {connecting ? "CONNECTING..." : attached ? "CONNECTED" : "ATTACH"}
+                {attachedLabel}
               </button>
               <button
                 onClick={run}
-                disabled={!attached || executing}
+                disabled={!isAttached || executing}
                 title="EXECUTE"
                 style={{
                   width: "38px",
@@ -670,10 +789,10 @@ export default function App() {
                   alignItems: "center",
                   justifyContent: "center",
                   background: "#080808",
-                  color: attached ? "#fff" : "#222",
+                  color: isAttached ? "#fff" : "#222",
                   border: "1px solid #111",
                   borderRadius: "6px",
-                  cursor: attached && !executing ? "pointer" : "not-allowed",
+                  cursor: isAttached && !executing ? "pointer" : "not-allowed",
                 }}
               >
                 {executing ? (
@@ -681,8 +800,8 @@ export default function App() {
                 ) : (
                   <Play
                     size={18}
-                    fill={attached ? "currentColor" : "none"}
-                    style={{ opacity: attached ? 1 : 0.4 }}
+                    fill={isAttached ? "currentColor" : "none"}
+                    style={{ opacity: isAttached ? 1 : 0.4 }}
                   />
                 )}
               </button>
