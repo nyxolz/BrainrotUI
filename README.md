@@ -33,15 +33,3 @@ curl -fsSL https://raw.githubusercontent.com/nyxolz/BrainrotUI/refs/heads/main/i
 
 -----
 
-## Stack
-
-|Layer     |Tech                       |
-|----------|---------------------------|
-|Runtime   |Electron                   |
-|Language  |TypeScript, JavaScript, TSX|
-|Components|React (TSX)                |
-|Bundler   |Vite / esbuild             |
-|Styling   |CSS Modules / Tailwind     |
-
------
-
