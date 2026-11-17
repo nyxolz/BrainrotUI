@@ -14,14 +14,6 @@
 
 -----
 
-## What is it
-
-BrainrotUI is macsploit UI built on **Electron**, written in **TypeScript / JavaScript / TSX**.
-
-Made by [nyxolz](https://github.com/nyxolz) 
-
------
-
 ## Install
 
 
